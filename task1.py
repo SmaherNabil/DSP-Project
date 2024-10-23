@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-
 class SignalProcessor:
     def __init__(self, master):
         self.master = master
@@ -75,70 +74,19 @@ class SignalProcessor:
         if not self.signals:
             messagebox.showwarning("No Signal", "Please load a signal first.")
             return
-
         plt.figure()
 
         for signal in self.signals:
-            plt.plot(signal[:, 0], signal[:, 1], label='Signal')
-
-        # Set labels and title
-        plt.xlabel('Index')
-        plt.ylabel('Value')
-        plt.title('Signal Plot')
-
-        # Add grid lines for better visualization
-        plt.grid(True)
-
-        # Get current axes and set limits to show both positive and negative regions
-        plt.axhline(0, color='red', linewidth=0.9)  # X-axis (horizontal line)
-        plt.axvline(0, color='red', linewidth=0.9)  # Y-axis (vertical line)
-
-        # Adjust the limits dynamically based on the signal range
-        plt.xlim(np.min([np.min(signal[:, 0]) for signal in self.signals]),
-                 np.max([np.max(signal[:, 0]) for signal in self.signals])) #for indices
-        plt.ylim(np.min([np.min(signal[:, 1]) for signal in self.signals]),
-                 np.max([np.max(signal[:, 1]) for signal in self.signals])) #for values
-
-        # Add a legend
-        plt.legend()
-
-        # Show the plot
-        plt.show()
-#done
+            self.plot_signal_helper(signal, label='Signal', title='Analog signal')
+# done
     def plot_disc_signal(self):
         if not self.signals:
             messagebox.showwarning("No Signal", "Please load a signal first.")
             return
-
         plt.figure()
 
         for signal in self.signals:
-            plt.scatter(signal[:, 0], signal[:, 1],color='magenta', label='Signal')
-            plt.vlines(signal[:, 0], ymin=0, ymax= signal[:, 1], color='purple', linestyle='solid', label='Lines to x-axis')
-
-        # Set labels and title
-        plt.xlabel('Index')
-        plt.ylabel('Value')
-        plt.title('Signal Plot')
-
-        # Add grid lines for better visualization
-        plt.grid(True)
-
-        # Get current axes and set limits to show both positive and negative regions
-        plt.axhline(0, color='cyan', linewidth=0.9)  # X-axis (horizontal line)
-        plt.axvline(0, color='cyan', linewidth=0.9)  # Y-axis (vertical line)
-
-        # Adjust the limits dynamically based on the signal range
-        plt.xlim(np.min([np.min(signal[:, 0]) for signal in self.signals]),
-                 np.max([np.max(signal[:, 0]) for signal in self.signals]))  # for indices
-        plt.ylim(np.min([np.min(signal[:, 1]) for signal in self.signals]),
-                 np.max([np.max(signal[:, 1]) for signal in self.signals]))  # for values
-
-        # Add a legend
-        plt.legend()
-
-        # Show the plot
-        plt.show()
+            self.plot_sample_signal(signal, label='Signal', title='Discrete signal')
 #done
     def add_signals(self):
         if len(self.signals) < 2:
@@ -239,10 +187,11 @@ class SignalProcessor:
 
         self.plot_signal_helper(result, 'Folded Signal', 'Folded/Reversed Signal')
 #done
+    # for plotting continuous signals
     def plot_signal_helper(self, result, label, title):
         plt.plot(result[:, 0], result[:, 1], label=label)
-        plt.xlabel('Index')
-        plt.ylabel('Value')
+        plt.xlabel('Time')
+        plt.ylabel('Amplitude')
         plt.title(title)
 
         # Set the origin lines (x-axis and y-axis) in red
@@ -251,81 +200,99 @@ class SignalProcessor:
 
         plt.legend()
         plt.show()
+#done
+    # for plotting discrete signals
+    def plot_sample_signal(self, result, label, title):
+        plt.scatter(result[:, 0], result[:, 1], label=label,color='magenta')
+        plt.vlines(result[:, 0], ymin=0, ymax=result[:, 1], color='purple', linestyle='solid',
+                   label='Lines to x-axis')
 
+        plt.xlabel('Time')
+        plt.ylabel('Amplitude')
+        plt.title(title)
+
+        plt.grid(True)
+
+        plt.axhline(0, color='cyan', linewidth=0.9)  # X-axis (horizontal line)
+        plt.axvline(0, color='cyan', linewidth=0.9)  # Y-axis (vertical line)
+
+        plt.legend()
+        plt.show()
+# done
     def generate_sine_signal(self):
         self.input_window('sin')
+# done
     def generate_cosine_signal(self):
         self.input_window('cos')
+# done
     def input_window(self, signal_type):
         input_win = tk.Toplevel(self.master)
-        input_win.title(f"Generate {signal_type} Signal")
+        input_win.title(f"Generate {signal_type.capitalize()} Signal")
 
-        tk.Label(input_win, text="Amplitude:").grid(row=0)
+        tk.Label(input_win, text="Amplitude:").grid(row=0, column=0)
         amplitude_entry = tk.Entry(input_win)
         amplitude_entry.grid(row=0, column=1)
 
-        tk.Label(input_win, text="Analog Frequency (Hz):").grid(row=1)
+        tk.Label(input_win, text="Analog Frequency (Hz):").grid(row=1, column=0)
         Analog_freq_entry = tk.Entry(input_win)
         Analog_freq_entry.grid(row=1, column=1)
 
-        tk.Label(input_win, text="Theta (Radians):").grid(row=2)
+        tk.Label(input_win, text="Theta (Radians):").grid(row=2, column=0)
         theta_entry = tk.Entry(input_win)
         theta_entry.grid(row=2, column=1)
 
-        tk.Label(input_win, text="Sampling Frequency (Hz):").grid(row=3)
+        tk.Label(input_win, text="Sampling Frequency (Hz):").grid(row=3, column=0)
         Sampling_freq_entry = tk.Entry(input_win)
         Sampling_freq_entry.grid(row=3, column=1)
 
-        self.generate_button = tk.Button(input_win, text="Generate")
-        self.generate_button.grid(row=4, column=1)
+        def generate_analog_signal():
+                amplitude = float(amplitude_entry.get())
+                analog_freq = float(Analog_freq_entry.get())
+                theta = float(theta_entry.get())
+                sampling_freq = float(Sampling_freq_entry.get())
+                thetaIn_Deg=np.deg2rad(theta)
+                if sampling_freq >= 2 * analog_freq:
+                    # points in all time
+                    t = np.linspace(0, 1, 1000)
+                    if signal_type == 'sin':
+                        # x(t) = A sin(2*pi*F*T + thetaIn_Deg)
+                        signal = amplitude * np.sin(2 * np.pi * analog_freq * t + thetaIn_Deg)
+                    else:
+                        # x(t) = A cos(2*pi*F*T + theta)
+                        signal = amplitude * np.cos(2 * np.pi * analog_freq * t + thetaIn_Deg)
 
+                    result = np.column_stack((t, signal))  # Combine time and signal
+                    self.plot_signal_helper(result, f"Generated {signal_type.capitalize()} Signal", f"{signal_type.capitalize()} Signal")
+                else:
+                    messagebox.showerror("Error", "Sampling frequency must be at least twice the analog frequency.")
 
-        amplitude = float(amplitude_entry.get())
-        analog_freq = float(Analog_freq_entry.get())
-        theta = float(theta_entry.get())
-        sampling_freq = float(Sampling_freq_entry.get())
+        # Generate button to create the signal
+        tk.Button(input_win, text="Generate Analog", command=generate_analog_signal).grid(row=4, column=0, columnspan=2)
+        # دي معرفش شغاله صح ولا اي بس اعتقد اه ابقي اتأكدي دي عشان تعمل sampling
+        def generate_discrete_signal():
+            amplitude = float(amplitude_entry.get())
+            analog_freq = float(Analog_freq_entry.get())
+            theta = float(theta_entry.get())
+            sampling_freq = float(Sampling_freq_entry.get())
+            # x(n) = A sin( 2*pi*fn/Fs + theta)
+            if sampling_freq >= 2 * analog_freq:
+                t = np.arange(0, 1, 1 / sampling_freq)  # Discrete time points with 1/sampling_rate --> n/fs
 
-        def fire_generate():
-            if fire==True:
-                  self.Generate_signal(signal_type, sampling_freq, theta, amplitude)
-            else :
-                self.Generate_signal(signal_type, FS, theta, amplitude)
+                if signal_type == 'sin':
+                    signal = amplitude * np.sin(2 * np.pi * analog_freq * t + theta)
+                else:
+                    signal = amplitude * np.cos(2 * np.pi * analog_freq * t + theta)
 
-        x= self.Check_Frequency(analog_freq,sampling_freq)
-        if x == True :
-            self.generate_button.config(command=fire_generate)
-            fire=True
+                # Combine time and signal for plotting
+                result = np.column_stack((t, signal))
+                self.plot_sample_signal(result, f"Generated Discrete {signal_type.capitalize()} Signal",
+                                        f"Discrete {signal_type.capitalize()} Signal")
+            else:
+                messagebox.showerror("Error", "Sampling frequency must be at least twice the analog frequency.")
 
-        else :
-            while True:
-                FS = int(tk.simpledialog.askstring("Input", f'Please Enter Valid Sampling Frequency greater than or equal ,{2*analog_freq}, : '))
-                if FS>= 2*analog_freq:
-                    fire=False
-                    self.generate_button.config(command=fire_generate)
-
-    def Check_Frequency(self,F_analog,F_sampling):
-        if(F_sampling>= 2*F_analog):
-            return True
-        else:
-            return False
-
-    def Generate_signal(self,SignalType,F_sampling,Theta,Amplitude):
-        t = np.linspace(0, 2 * np.pi, 1000)
-        if SignalType== "Sin":
-            signal = Amplitude * np.sin(F_sampling * t + Theta)
-            self.plot_signal_helper(signal, f'Signal Generated by Sin ', 'Sin Signal Generated')
-        elif SignalType=="Cos":
-            signal = Amplitude * np.cos(F_sampling * t + Theta)
-            self.plot_signal_helper(signal, f'Signal Generated by Cos', 'Cos Signal Generated')
-
-
-
-
-
-
-
-
-#testing functions
+        # Create a new button to generate the discrete signal
+        tk.Button(input_win, text="Generate Discrete", command=generate_discrete_signal).grid(row=5, column=0,
+                                                                                              columnspan=2)
 
 
 if __name__ == "__main__":
