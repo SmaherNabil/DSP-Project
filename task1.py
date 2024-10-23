@@ -5,6 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
+from numpy.ma.core import power
+
+
 class SignalProcessor:
     def __init__(self, master):
         self.master = master
@@ -49,6 +52,18 @@ class SignalProcessor:
 
         # Pack the Menubutton
         menubutton.pack()
+
+
+        menu2button = tk.Menubutton(master, text="Quantize Signal", relief=tk.RAISED)
+        # Create the menu for the menubutton
+        menu2button.menu = tk.Menu(menu2button, tearoff=0)
+        menu2button["menu"] = menu2button.menu
+        # Add checkbuttons enter levels or enter number of bits
+        menu2button.menu.add_command(label="Enter Number Of Levels", command=self.using_number_of_levels)
+        menu2button.menu.add_command(label="Enter Number Of Bits", command=self.using_number_of_bits)
+        # Pack the Menubutton
+        menu2button.pack()
+
 #done
     def load_signal(self):
         filepath = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
@@ -84,7 +99,6 @@ class SignalProcessor:
             messagebox.showwarning("No Signal", "Please load a signal first.")
             return
         plt.figure()
-
         for signal in self.signals:
             self.plot_sample_signal(signal, label='Signal', title='Discrete signal')
 #done
@@ -268,7 +282,6 @@ class SignalProcessor:
 
         # Generate button to create the signal
         tk.Button(input_win, text="Generate Analog", command=generate_analog_signal).grid(row=4, column=0, columnspan=2)
-        # دي معرفش شغاله صح ولا اي بس اعتقد اه ابقي اتأكدي دي عشان تعمل sampling
         def generate_discrete_signal():
             amplitude = float(amplitude_entry.get())
             analog_freq = float(Analog_freq_entry.get())
@@ -293,7 +306,116 @@ class SignalProcessor:
         # Create a new button to generate the discrete signal
         tk.Button(input_win, text="Generate Discrete", command=generate_discrete_signal).grid(row=5, column=0,
                                                                                               columnspan=2)
+#done
+    def plot_quantized_signal(self, result, label, title,mid_points,quantization_errors):
+        plt.scatter(result[:, 0], result[:, 1], label=label, color='magenta')
+        plt.vlines(result[:, 0], ymin=0, ymax=result[:, 1], color='purple', linestyle='solid',
+                   label='Lines to x-axis')
 
+        plt.xlabel('Time')
+        plt.ylabel('Amplitude')
+        plt.title(title)
+
+        plt.grid(True)
+
+        plt.axhline(0, color='cyan', linewidth=0.9)  # X-axis (horizontal line)
+        plt.axvline(0, color='cyan', linewidth=0.9)  # Y-axis (vertical line)
+        # Add horizontal lines for each level on the plot
+        for level in mid_points:
+            plt.axhline(y=level, color='black', linestyle='--', linewidth=0.7, label=f'Level: {level}')
+            # Calculate average quantization error
+        avg_error = np.mean(np.square(quantization_errors))
+        # Display average error on the plot
+        plt.text(0.05, 0.95, f'Average Error: {avg_error:.4f}', transform=plt.gca().transAxes,
+                 fontsize=12, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
+
+        plt.legend()
+        plt.show()
+#done
+    def using_number_of_levels(self ):
+        SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
+        SigNumber-=1
+        amplitude_values = self.signals[SigNumber][:, 1]
+        # Find the minimum and maximum values in the amplitude column
+        min_val = np.min(amplitude_values)
+        max_val = np.max(amplitude_values)
+        levels = int(tk.simpledialog.askstring("Input", "Enter the number of levels:"))
+        delta= (max_val - min_val ) / levels
+        print(min_val)
+        print(max_val)
+        print(delta)
+        new_ranges = []
+        temp=min_val
+        # Create the new ranges using a for loop
+        for i in range(levels):
+            pair = (temp,temp+ delta)  # Create a pair for the range
+            new_ranges.append(pair)
+            temp +=delta
+        print(new_ranges)
+        mid_points=[]
+        for i in new_ranges:
+            mid_point=(i[0]+i[1])/2
+            mid_points.append(mid_point)
+        print(mid_points)
+
+        # Create a new array to store quantized values
+        quantized_array = []
+        quantization_errors=[]
+
+        # Map each value in amplitude_values to the nearest midpoint
+        for value in amplitude_values:
+            # Find the nearest midpoint using a l1mbda function to calculate the distance
+            nearest_mid = min(mid_points, key=lambda x: abs(x - value))
+            quantized_array.append(nearest_mid)  # Append the nearest midpoint to quantized_array
+            quantization_errors.append(value - nearest_mid)  # Calculate quantization error
+
+        print("Quantized Array:", quantized_array)
+        x=self.signals[SigNumber][:, 0]
+        result = np.column_stack((x, quantized_array))
+        self.plot_quantized_signal(result,"Quantized Signal","Using number of levels",mid_points,quantization_errors)
+#done
+    def using_number_of_bits(self):
+        SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
+        SigNumber-=1
+        amplitude_values = self.signals[SigNumber][:, 1]
+        # Find the minimum and maximum values in the amplitude column
+        min_val = np.min(amplitude_values)
+        max_val = np.max(amplitude_values)
+        bits = int(tk.simpledialog.askstring("Input", "Enter the number of bits:"))
+        levels = 2 ** bits  # Correct way to calculate levels
+        delta = (max_val - min_val) / levels
+        print(levels)
+        print(min_val)
+        print(max_val)
+        print(delta)
+        new_ranges = []
+        temp = min_val
+        # Create the new ranges using a for loop
+        for i in range(levels):
+            pair = (temp, temp + delta)  # Create a pair for the range
+            new_ranges.append(pair)
+            temp += delta
+        print(new_ranges)
+        mid_points = []
+        for i in new_ranges:
+            mid_point = (i[0] + i[1]) / 2
+            mid_points.append(mid_point)
+        print(mid_points)
+
+        # Create a new array to store quantized values
+        quantized_array = []
+        quantization_errors=[]
+        # Map each value in amplitude_values to the nearest midpoint
+        for value in amplitude_values:
+            # Find the nearest midpoint using a l1mbda function to calculate the distance
+            nearest_mid = min(mid_points, key=lambda x: abs(x - value))
+            quantized_array.append(nearest_mid)  # Append the nearest midpoint to quantized_array
+            quantization_errors.append(value - nearest_mid)  # Calculate quantization error
+
+        print("Quantized Array:", quantized_array)
+        x = self.signals[SigNumber][:, 0]
+        result = np.column_stack((x, quantized_array))
+        self.plot_quantized_signal(result, "Quantized Signal", "Using number of levels", mid_points,quantization_errors)
 
 if __name__ == "__main__":
     root = tk.Tk()
