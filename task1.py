@@ -7,6 +7,8 @@ from collections import defaultdict
 
 from numpy.ma.core import power
 
+from QuanTest1 import QuantizationTest1
+
 
 class SignalProcessor:
     def __init__(self, master):
@@ -332,62 +334,91 @@ class SignalProcessor:
         plt.legend()
         plt.show()
 #done
-    def using_number_of_levels(self ):
+    def using_number_of_levels(self):
         SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
-        SigNumber-=1
+        SigNumber -= 1
         amplitude_values = self.signals[SigNumber][:, 1]
+
         # Find the minimum and maximum values in the amplitude column
         min_val = np.min(amplitude_values)
         max_val = np.max(amplitude_values)
         levels = int(tk.simpledialog.askstring("Input", "Enter the number of levels:"))
-        delta= (max_val - min_val ) / levels
+        delta = (max_val - min_val) / levels
+
         print(min_val)
         print(max_val)
         print(delta)
+
         new_ranges = []
-        temp=min_val
+        temp = min_val
+
         # Create the new ranges using a for loop
         for i in range(levels):
-            pair = (temp,temp+ delta)  # Create a pair for the range
+            pair = (temp, temp + delta)  # Create a pair for the range
             new_ranges.append(pair)
-            temp +=delta
+            temp += delta
         print(new_ranges)
-        mid_points=[]
+
+        mid_points = []
         for i in new_ranges:
-            mid_point=(i[0]+i[1])/2
+            mid_point = (i[0] + i[1]) / 2
             mid_points.append(mid_point)
-        print(mid_points)
+        mid_points = [round(i, 4) for i in mid_points]
+        print("Midpoints:", mid_points)
 
-        # Create a new array to store quantized values
+        # Determine the number of bits required
+        num_bits = int(np.ceil(np.log2(levels)))
+        print("Number of Bits Required:", num_bits)
+
+        # Create a dictionary to map each midpoint's level to its binary representation
+        level_to_binary = {
+            i: format(i, f'0{num_bits}b') for i in range(levels)
+        }
+        print("Level to Binary Mapping:", level_to_binary)
+
+        # Create arrays to store quantized values, quantization errors, and binary representations
         quantized_array = []
-        quantization_errors=[]
+        quantization_errors = []
+        binary_representations = []
 
-        # Map each value in amplitude_values to the nearest midpoint
+        # Map each value in amplitude_values to the nearest midpoint and corresponding level's binary representation
         for value in amplitude_values:
-            # Find the nearest midpoint using a l1mbda function to calculate the distance
             nearest_mid = min(mid_points, key=lambda x: abs(x - value))
             quantized_array.append(nearest_mid)  # Append the nearest midpoint to quantized_array
             quantization_errors.append(value - nearest_mid)  # Calculate quantization error
+            level_index = mid_points.index(nearest_mid)  # Find the index of the nearest midpoint
+            binary_representations.append(level_to_binary[level_index])  # Get binary representation of the level
 
         print("Quantized Array:", quantized_array)
-        x=self.signals[SigNumber][:, 0]
+        print("Binary Representations:", binary_representations)
+
+        # Combine x values and quantized values for plotting
+        x = self.signals[SigNumber][:, 0]
         result = np.column_stack((x, quantized_array))
-        self.plot_quantized_signal(result,"Quantized Signal","Using number of levels",mid_points,quantization_errors)
-#done
+        self.plot_quantized_signal(result, "Quantized Signal", "Using number of levels", mid_points,
+                                   quantization_errors)
+
+
+        QuantizationTest1("D:\\d\\fcis 2025\\pythonProject\\Quan1_Out.txt", binary_representations,
+                          quantized_array)
+    #done
     def using_number_of_bits(self):
         SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
         SigNumber-=1
         amplitude_values = self.signals[SigNumber][:, 1]
+
         # Find the minimum and maximum values in the amplitude column
         min_val = np.min(amplitude_values)
         max_val = np.max(amplitude_values)
         bits = int(tk.simpledialog.askstring("Input", "Enter the number of bits:"))
         levels = 2 ** bits  # Correct way to calculate levels
         delta = (max_val - min_val) / levels
+
         print(levels)
         print(min_val)
         print(max_val)
         print(delta)
+
         new_ranges = []
         temp = min_val
         # Create the new ranges using a for loop
@@ -400,23 +431,37 @@ class SignalProcessor:
         for i in new_ranges:
             mid_point = (i[0] + i[1]) / 2
             mid_points.append(mid_point)
+        mid_points = [round(i, 4) for i in mid_points]
         print(mid_points)
+
+        # Create a dictionary to map each midpoint's level to its binary representation
+        level_to_binary = {
+            i: format(i, f'0{bits}b') for i in range(levels)
+        }
+        print("Level to Binary Mapping:", level_to_binary)
 
         # Create a new array to store quantized values
         quantized_array = []
         quantization_errors=[]
+        binary_representations = []
+
         # Map each value in amplitude_values to the nearest midpoint
         for value in amplitude_values:
             # Find the nearest midpoint using a l1mbda function to calculate the distance
-            nearest_mid = min(mid_points, key=lambda x: abs(x - value))
+            nearest_mid = min(mid_points, key=lambda x: abs(x -  value))
             quantized_array.append(nearest_mid)  # Append the nearest midpoint to quantized_array
             quantization_errors.append(value - nearest_mid)  # Calculate quantization error
+            level_index = mid_points.index(nearest_mid)  # Find the index of the nearest midpoint
+            binary_representations.append(level_to_binary[level_index])  # Get binary representation of the level
 
         print("Quantized Array:", quantized_array)
+        print("Binary Representations:", binary_representations)
+
         x = self.signals[SigNumber][:, 0]
         result = np.column_stack((x, quantized_array))
         self.plot_quantized_signal(result, "Quantized Signal", "Using number of levels", mid_points,quantization_errors)
-
+        QuantizationTest1("D:\\d\\fcis 2025\\pythonProject\\Quan1_Out.txt", binary_representations,
+                          quantized_array)
 if __name__ == "__main__":
     root = tk.Tk()
     app = SignalProcessor(root)
