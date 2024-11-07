@@ -8,6 +8,7 @@ from collections import defaultdict
 from numpy.ma.core import power
 
 from QuanTest1 import QuantizationTest1
+from QuanTest2 import QuantizationTest2
 
 
 class SignalProcessor:
@@ -309,7 +310,8 @@ class SignalProcessor:
         tk.Button(input_win, text="Generate Discrete", command=generate_discrete_signal).grid(row=5, column=0,
                                                                                               columnspan=2)
 #done
-    def plot_quantized_signal(self, result, label, title,mid_points,quantization_errors):
+    def plot_quantized_signal(self,result , label, title,mid_points,quantization_errors):
+
         plt.scatter(result[:, 0], result[:, 1], label=label, color='magenta')
         plt.vlines(result[:, 0], ymin=0, ymax=result[:, 1], color='purple', linestyle='solid',
                    label='Lines to x-axis')
@@ -380,13 +382,16 @@ class SignalProcessor:
         quantized_array = []
         quantization_errors = []
         binary_representations = []
+        Interval_level=[]
 
         # Map each value in amplitude_values to the nearest midpoint and corresponding level's binary representation
         for value in amplitude_values:
             nearest_mid = min(mid_points, key=lambda x: abs(x - value))
             quantized_array.append(nearest_mid)  # Append the nearest midpoint to quantized_array
-            quantization_errors.append(value - nearest_mid)  # Calculate quantization error
+            quantization_errors.append(nearest_mid-value)  # Calculate quantization error
+
             level_index = mid_points.index(nearest_mid)  # Find the index of the nearest midpoint
+            Interval_level.append(level_index+1)
             binary_representations.append(level_to_binary[level_index])  # Get binary representation of the level
 
         print("Quantized Array:", quantized_array)
@@ -399,8 +404,8 @@ class SignalProcessor:
                                    quantization_errors)
 
 
-        QuantizationTest1("D:\\d\\fcis 2025\\pythonProject\\Quan1_Out.txt", binary_representations,
-                          quantized_array)
+        QuantizationTest2("D:\\d\\fcis 2025\\pythonProject\\Quan2_Out.txt", Interval_level,binary_representations,
+                          quantized_array,quantization_errors)
     #done
     def using_number_of_bits(self):
         SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
@@ -448,7 +453,7 @@ class SignalProcessor:
         # Map each value in amplitude_values to the nearest midpoint
         for value in amplitude_values:
             # Find the nearest midpoint using a l1mbda function to calculate the distance
-            nearest_mid = min(mid_points, key=lambda x: abs(x -  value))
+            nearest_mid = min(mid_points, key=lambda x: round(abs(x -  value),4))
             quantized_array.append(nearest_mid)  # Append the nearest midpoint to quantized_array
             quantization_errors.append(value - nearest_mid)  # Calculate quantization error
             level_index = mid_points.index(nearest_mid)  # Find the index of the nearest midpoint
