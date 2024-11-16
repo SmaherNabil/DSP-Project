@@ -16,7 +16,7 @@ class SignalProcessor:
         self.master = master
         self.master.title("Signal Processing GUI")
         self.signals = []
-
+        self.NumOfSam=0
         # GUI Elements
         self.load_button = tk.Button(master, text="Load Signal", command=self.load_signal)
         self.load_button.pack()
@@ -66,6 +66,16 @@ class SignalProcessor:
         menu2button.menu.add_command(label="Enter Number Of Bits", command=self.using_number_of_bits)
         # Pack the Menubutton
         menu2button.pack()
+
+        self.convolve_button = tk.Button(master, text="Convolve", command=self.convolve_signals)
+        self.convolve_button.pack()
+
+        self.smooth_button = tk.Button(master, text="Smooth", command=self.smooth_signal)
+        self.smooth_button.pack()
+
+        self.sharpening_button = tk.Button(master, text="Sharpening", command=self.sharpening_signal)
+        self.sharpening_button.pack()
+
 
 #done
     def load_signal(self):
@@ -467,6 +477,80 @@ class SignalProcessor:
         self.plot_quantized_signal(result, "Quantized Signal", "Using number of levels", mid_points,quantization_errors)
         QuantizationTest1("D:\\d\\fcis 2025\\pythonProject\\Quan1_Out.txt", binary_representations,
                           quantized_array)
+#done
+    def convolve_signals(self):
+        range_of_out=(min(self.signals[0][:,0])+min(self.signals[1][:,0]),
+                                            max(self.signals[0][:,0])+max(self.signals[1][:,0]))
+        x=self.signals[0][:,1]
+        h=self.signals[1][:,1]
+        len_x = len(x)
+        len_h = len(h)
+
+        # The length of the output signal y[n]
+        len_y = len_x + len_h - 1
+        y = [0] * len_y  # Initialize output signal to zeros
+
+        # Iterate through each index in y
+        for n in range(len_y):
+            # For the current position in y, calculate the sum of products
+            for k in range(len_x):
+                # Calculate the corresponding index in x
+                h_index = n - k
+                if 0 <= h_index < len_h:  # Ensure the x_index is valid
+                    y[n] += h[h_index] * x[k]
+        # Prepare result as a 2D array with indices
+        output_indices = np.arange(range_of_out[0], range_of_out[1] + 1)
+        result = np.column_stack((output_indices, y))  # Combine indices and y into a 2D array
+
+        self.plot_sample_signal(result,"convolution","convolved signal")
+#done
+    def smooth_signal(self):
+
+        window_size = int(tk.simpledialog.askstring("Input", "Enter the window size:"))
+        len_y=len(self.signals[0][:, 0])-window_size+1
+        range_of_out = (min(self.signals[0][:, 0]) ,max(self.signals[0][:, 0])-( window_size-1))
+
+        x=self.signals[0][:,1]
+        sum_x=0
+        y = [0] *len_y # Initialize output signal to zeros
+        # Perform the moving average
+        for i in range(len_y):
+            sum_x = 0
+            for j in range(window_size):
+                sum_x += x[i + j]
+            y[i] = sum_x / window_size
+        output_indices = np.arange(range_of_out[0],range_of_out[1]+1)
+        result = np.column_stack((output_indices, y))  # Combine indices and y into a 2D array
+        self.plot_sample_signal(result, "Smoothed signal", "Smoothing")
+#done
+    def sharpening_signal(self):
+        der_type = int(tk.simpledialog.askstring("Input", "Enter 1 for 1st derivative, 2 for 2nd derivative:"))
+        x = self.signals[0][:, 1]
+        len_x = len(x)
+
+        # First derivative
+        len_y = len_x - 1
+        y = [0] * len_y
+        for n in range(1, len_x):
+            y[n - 1] = x[n] - x[n - 1]
+        if der_type == 1:
+            range_of_out = (min(self.signals[0][:, 0]) , max(self.signals[0][:, 0])-(1))
+            output_indices = np.arange(range_of_out[0], range_of_out[1] + 1)
+            result = np.column_stack((output_indices, y))
+            self.plot_sample_signal(result, "First Derivative", "Sharpen Signal")
+
+        elif der_type == 2:
+            len_z = len_y - 1
+            z = [0] * len_z
+            for n in range(1, len_y):
+                z[n - 1] = y[n] - y[n - 1]
+
+            range_of_out = (min(self.signals[0][:, 0]) , max(self.signals[0][:, 0])-(2))
+            output_indices = np.arange(range_of_out[0], range_of_out[1] + 1)
+            result = np.column_stack((output_indices, z))
+            self.plot_sample_signal(result, "Second Derivative", "Sharpen Signal")
+
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = SignalProcessor(root)
