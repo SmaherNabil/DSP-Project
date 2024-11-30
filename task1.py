@@ -1,3 +1,5 @@
+import cmath
+import math
 import tkinter as tk
 from signal import signal
 from tkinter import filedialog, messagebox
@@ -75,6 +77,16 @@ class SignalProcessor:
 
         self.sharpening_button = tk.Button(master, text="Sharpening", command=self.sharpening_signal)
         self.sharpening_button.pack()
+
+        menu2button = tk.Menubutton(master, text="Fourier", relief=tk.RAISED)
+        # Create the menu for the menubutton
+        menu2button.menu = tk.Menu(menu2button, tearoff=0)
+        menu2button["menu"] = menu2button.menu
+        # Add checkbuttons enter levels or enter number of bits
+        menu2button.menu.add_command(label="DFT", command=self.DFT_transform)
+        menu2button.menu.add_command(label="IDFT", command=self.IDFT_transform)
+        # Pack the Menubutton
+        menu2button.pack()
 
 
 #done
@@ -490,6 +502,7 @@ class SignalProcessor:
         len_y = len_x + len_h - 1
         y = [0] * len_y  # Initialize output signal to zeros
 
+
         # Iterate through each index in y
         for n in range(len_y):
             # For the current position in y, calculate the sum of products
@@ -550,6 +563,99 @@ class SignalProcessor:
             result = np.column_stack((output_indices, z))
             self.plot_sample_signal(result, "Second Derivative", "Sharpen Signal")
 
+
+    def DFT_transform(self):
+        SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
+        SigNumber -= 1
+
+        frequency = int(tk.simpledialog.askstring("Input", "Enter frequency in HZ:"))
+
+        x = self.signals[0][:, 1]
+        signLen = int(len(x))
+        y = [0] * signLen
+        Amp = [0] * signLen
+        X_axis = [0] * signLen
+        PhaseShift = [0] * signLen
+        elnatta = (2 * (math.pi) * frequency) / signLen
+
+        for K in range(signLen):
+            for N in range(signLen):
+                exponent = -1j * 2 * cmath.pi * K * N / signLen
+                y[K] += x[N] * cmath.exp(exponent)
+            # Extract real and imaginary parts
+            real_part = round(y[K].real,10)
+            imag_part = round(y[K].imag,10)
+            print(real_part)
+            print(imag_part)
+            tempPhase=imag_part/real_part
+            PhaseShift[K]= math.atan2(imag_part,real_part)
+            Amp[K]=math.sqrt(real_part**2+imag_part**2)
+            X_axis[K]=K*elnatta
+        y_cleaned = [complex(round(val.real, 10), round(val.imag, 10)) for val in y]
+        print(y_cleaned)
+        print(Amp)
+        print(PhaseShift)
+        print(X_axis)
+
+        result = np.column_stack((X_axis, Amp))
+        self.plot_sample_signal(result, "Amplitude graph", "DFT output 1")
+        result = np.column_stack((X_axis, PhaseShift))
+        self.plot_sample_signal(result, "Phase Shift graph", "DFT output 2")
+
+    def IDFT_transform(self):
+        amp = self.signals[0][:, 0]
+        phase = self.signals[0][:, 1]
+        signLen=len(self.signals[0][:, 0])
+        y = [0] * signLen
+        out= [0] * signLen
+        imag_part = [0] * signLen
+        real_part = [0] * signLen
+        for k in range(signLen):
+            imag_part[k]=amp[k]*math.sin(phase[k])
+            real_part[k]=amp[k]*math.cos(phase[k])
+            y[k]=complex(real_part[k],imag_part[k])
+
+        y_cleaned = [complex(round(val.real, 10), round(val.imag, 10)) for val in y]
+
+
+        print("y : ",y_cleaned)
+        for N in range(signLen):
+            for K in range(signLen):
+                exponent = 1j * 2 * cmath.pi * K * N / signLen
+                out[N] += y[K] * cmath.exp(exponent)
+            out[N]/=signLen
+        out_cleaned = [complex(round(val.real, 10), round(val.imag, 10)) for val in out]
+        indices = list(range(signLen))  # Generate indices from 0 to len(signal)-1
+        amplitudes = [round(abs(val), 10) for val in out]
+        print(amplitudes)
+        result = np.column_stack((indices, amplitudes))
+        self.plot_sample_signal(result, "Resulted Signal", "IDFT output 1")
+
+
+
+
+
+
+
+
+# def CompareSignals(userFirstSignal,userSecondSignal,Your_indices,Your_samples):
+#     if(userFirstSignal=='Signal1.txt' and userSecondSignal=='Signal2.txt'):
+#         file_name="add.txt"  # write here the path of the add output file
+#     expected_indices,expected_samples=ReadSignalFile(file_name)
+#     if (len(expected_samples)!=len(Your_samples)) and (len(expected_indices)!=len(Your_indices)):
+#         print("Addition Test case failed, your signal have different length from the expected one")
+#         return
+#     for i in range(len(Your_indices)):
+#         if(Your_indices[i]!=expected_indices[i]):
+#             print("Addition Test case failed, your signal have different indicies from the expected one")
+#             return
+#     for i in range(len(expected_samples)):
+#         if abs(Your_samples[i] - expected_samples[i]) < 0.01:
+#             continue
+#         else:
+#             print("Addition Test case failed, your signal have different values from the expected one")
+#             return
+#     print("Addition Test case passed successfully")
 
 if __name__ == "__main__":
     root = tk.Tk()
