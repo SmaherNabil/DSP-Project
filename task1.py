@@ -8,9 +8,17 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 
 from numpy.ma.core import power
+import os
+import numpy as np
+from tkinter import messagebox
 
 from QuanTest1 import QuantizationTest1
 from QuanTest2 import QuantizationTest2
+import numpy as np
+from tkinter import filedialog, messagebox
+
+from scipy.signal import get_window
+import math
 
 
 class SignalProcessor:
@@ -18,6 +26,9 @@ class SignalProcessor:
         self.master = master
         self.master.title("Signal Processing GUI")
         self.signals = []
+        self.class_1_signals=[]
+        self.class_2_signals=[]
+        self.test_signals=[]
         self.NumOfSam=0
         # GUI Elements
         self.load_button = tk.Button(master, text="Load Signal", command=self.load_signal)
@@ -88,6 +99,23 @@ class SignalProcessor:
         # Pack the Menubutton
         menu2button.pack()
 
+        self.cross_correlation_button = tk.Button(master, text="Cross Correlation", command=self.cross_correlation)
+        self.cross_correlation_button.pack()
+
+        self.class_correlation_button = tk.Button(master, text="Class Correlation", command=self.correlation_for_classes)
+        self.class_correlation_button.pack()
+
+        menu3button = tk.Menubutton(master, text="Filter", relief=tk.RAISED)
+        # Create the menu for the menubutton
+        menu3button.menu = tk.Menu(menu3button, tearoff=0)
+        menu3button["menu"] = menu3button.menu
+        # Add checkbuttons enter levels or enter number of bits
+        menu3button.menu.add_command(label="Low pass", command=self.low_pass_filter)
+        menu3button.menu.add_command(label="High pass", command=self.high_pass_filter)
+        # menu3button.menu.add_command(label="Band pass", command=self.band_pass_filter)
+        # menu3button.menu.add_command(label="Band stop", command=self.band_stop_filter)
+        # Pack the Menubutton
+        menu3button.pack()
 
 #done
     def load_signal(self):
@@ -562,8 +590,7 @@ class SignalProcessor:
             output_indices = np.arange(range_of_out[0], range_of_out[1] + 1)
             result = np.column_stack((output_indices, z))
             self.plot_sample_signal(result, "Second Derivative", "Sharpen Signal")
-
-
+#done
     def DFT_transform(self):
         SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
         SigNumber -= 1
@@ -601,7 +628,7 @@ class SignalProcessor:
         self.plot_sample_signal(result, "Amplitude graph", "DFT output 1")
         result = np.column_stack((X_axis, PhaseShift))
         self.plot_sample_signal(result, "Phase Shift graph", "DFT output 2")
-
+#done
     def IDFT_transform(self):
         amp = self.signals[0][:, 0]
         phase = self.signals[0][:, 1]
@@ -631,31 +658,448 @@ class SignalProcessor:
         result = np.column_stack((indices, amplitudes))
         self.plot_sample_signal(result, "Resulted Signal", "IDFT output 1")
 
+#point 1 and 2 in task 8
+    def cross_correlation(self):
 
+        x = self.signals[0][:, 1]  # First signal values
+        h = self.signals[1][:, 1]  # Second signal values
+        len_x = len(x)
+        len_h = len(h)
+        start = int(self.signals[0][:, 0][0])
+        end = int(self.signals[0][:, 0][-1])
+        size = len(x)  # Total number of points in the correlation result
 
+        # The length of the output signal y[n]
+        len_r = len_x
+        r = [0] * len_r  # Initialize output signal to zeros
 
+        # Compute periodic correlation
+        for l in range(len_r):
+            for n in range(len_x):
+                h_index = (n + l) % len_h  # Wrap around using modulo for periodicity
+                r[l] += h[h_index] * x[n]
+            r[l] /= size  # Normalize by the size
 
+        # Prepare result as a 2D array with indices
+        output_indices = np.arange(start, end + 1)
 
+        # Normalize the correlation result (optional but recommended)
+        normalization_factor = np.sqrt(np.sum(x ** 2) * np.sum(h ** 2))
+        if normalization_factor != 0:
+            for val in range(len_r):
+                r[val] /= (normalization_factor * (1 / size))
 
+        print(r)
+        result = np.column_stack((output_indices, r))  # Combine indices and y into a 2D array
+        self.plot_sample_signal(result, " Correlation ", "Correlated signal")
 
-# def CompareSignals(userFirstSignal,userSecondSignal,Your_indices,Your_samples):
-#     if(userFirstSignal=='Signal1.txt' and userSecondSignal=='Signal2.txt'):
-#         file_name="add.txt"  # write here the path of the add output file
-#     expected_indices,expected_samples=ReadSignalFile(file_name)
-#     if (len(expected_samples)!=len(Your_samples)) and (len(expected_indices)!=len(Your_indices)):
-#         print("Addition Test case failed, your signal have different length from the expected one")
-#         return
-#     for i in range(len(Your_indices)):
-#         if(Your_indices[i]!=expected_indices[i]):
-#             print("Addition Test case failed, your signal have different indicies from the expected one")
-#             return
-#     for i in range(len(expected_samples)):
-#         if abs(Your_samples[i] - expected_samples[i]) < 0.01:
-#             continue
-#         else:
-#             print("Addition Test case failed, your signal have different values from the expected one")
-#             return
-#     print("Addition Test case passed successfully")
+        check = int(tk.simpledialog.askstring("Input", "Please if you want to calculate the time delay press 1 :"))
+
+        if check==1 :
+            Fs = int(tk.simpledialog.askstring("Input", "Please enter the Sampling Frequency :"))
+            # Find the lag corresponding to the maximum correlation
+            max_corr_index = np.argmax(r)  # Index of maximum correlation
+            max_correlation = r[max_corr_index]
+            timeDelay=(1/Fs)*max_corr_index
+            messagebox.showinfo("Success", f"Time Delay is equal to  {timeDelay} .")
+
+#point 3 in task 8
+    def correlation(self, signal_a, signal_b):
+        """
+        Computes the normalized correlation between two signals.
+        Assumes that both signals are 2D arrays with time index and values.
+        """
+        x = signal_a[:, 1]  # Signal A values
+        h = signal_b[:, 1]  # Signal B values
+
+        len_x = len(x)
+        len_h = len(h)
+
+        r = np.zeros(len_x)  # Initialize correlation array
+
+        # Compute the cross-correlation
+        for l in range(len_x):
+            for n in range(len_x):
+                h_index = n + l
+                if 0 <= h_index < len_h:  # Check if the index is within bounds
+                    r[l] += h[h_index] * x[n]
+
+        # Normalize the result
+        normalization_factor = np.sqrt(np.sum(x ** 2) * np.sum(h ** 2))
+        if normalization_factor != 0:
+            r = r / normalization_factor
+
+        return r
+
+    def classify_signal(self, test_signal):
+        """
+        Classify a test signal based on the correlation with Class 1 and Class 2 signals.
+        Returns the predicted class (1 or 2).
+        """
+        max_corr_class_1 = 0
+        max_corr_class_2 = 0
+
+        # Compute maximum correlation with Class 1 signals
+        for filename, class_1_signal in self.class_1_signals:
+            correlation_result = self.correlation(test_signal, class_1_signal)
+            max_corr_class_1 = max(max_corr_class_1, np.max(correlation_result))
+
+        # Compute maximum correlation with Class 2 signals
+        for filename, class_2_signal in self.class_2_signals:
+            correlation_result = self.correlation(test_signal, class_2_signal)
+            max_corr_class_2 = max(max_corr_class_2, np.max(correlation_result))
+
+        # Classify based on which class has the higher maximum correlation
+        if max_corr_class_1 > max_corr_class_2:
+            return 1  # Class 1
+        else:
+            return 2  # Class 2
+
+    def process_and_classify_all_test_signals(self):
+        """
+        Process all test signals and classify them based on maximum correlation.
+        """
+        classified_signals = {}
+
+        for filename, test_signal in self.test_signals:
+            predicted_class = self.classify_signal(test_signal)
+            classified_signals[filename] = predicted_class
+
+        return classified_signals
+
+    def load_all_signals(self, base_dir):
+        # Directories for class 1, class 2, and test signals
+
+        class_1_dir = os.path.join(base_dir, 'Class 1')
+        class_2_dir = os.path.join(base_dir, 'Class 2')
+        test_signals_dir = os.path.join(base_dir, 'Test Signals')
+
+        # Helper function to load files from a given directory
+        def load_files_from_directory(directory):
+            signals = []
+            for filename in os.listdir(directory):
+                if filename.endswith('.txt'):
+                    filepath = os.path.join(directory, filename)
+                    signal = self.load_signal_from_file(filepath)  # Use the function to load a single file
+                    signals.append((filename, signal))
+            return signals
+
+        # Load signals from all directories
+        class_1_signals = load_files_from_directory(class_1_dir)
+        class_2_signals = load_files_from_directory(class_2_dir)
+        test_signals = load_files_from_directory(test_signals_dir)
+
+        # Add signals to the respective lists
+        self.class_1_signals = class_1_signals
+        self.class_2_signals = class_2_signals
+        self.test_signals = test_signals
+
+        # Show a success message
+        messagebox.showinfo("Success", "All signals from Class 1, Class 2, and Test Signals have been loaded.")
+
+    def load_signal_from_file(self, filepath):
+        """ Load a signal from a single file and return it as a numpy array """
+        try:
+            with open(filepath, 'r') as file:
+                data = file.readlines()
+
+            # Parse the signal data starting from the fourth line
+            signal_values = [float(line.strip()) for line in data[0:]]
+
+            # If you need time indices (assuming uniform sampling), generate them
+            time_indices = np.arange(len(signal_values))
+
+            # Combine time indices and signal values into a 2D array
+            signal = np.column_stack((time_indices, signal_values))
+
+            return signal
+
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred while loading the signal from {filepath}: {e}")
+            return None
+
+    def correlation_for_classes(self):
+        base_directory = r"D:\d\fcis 2025\pythonProject\Correlation Task Files\point3 Files"
+        self.load_all_signals(base_directory)
+        classified=self.process_and_classify_all_test_signals()
+        print(classified)
+        messagebox.showinfo("Success", f"After classification here is the output {classified} .")
+
+    def low_pass_filter(self):
+        input_win = tk.Toplevel(self.master)
+        input_win.title(f"Low Pass Filter ")
+
+        tk.Label(input_win, text="Sampling Frequency:").grid(row=0, column=0)
+        FS_entry = tk.Entry(input_win)
+        FS_entry.grid(row=0, column=1)
+
+        tk.Label(input_win, text="Cut Off Frequency:").grid(row=1, column=0)
+        Cut_off_entry = tk.Entry(input_win)
+        Cut_off_entry.grid(row=1, column=1)
+
+        tk.Label(input_win, text="Stop Attenuation:").grid(row=2, column=0)
+        Stop_entry = tk.Entry(input_win)
+        Stop_entry.grid(row=2, column=1)
+
+        tk.Label(input_win, text="Transition Band:").grid(row=3, column=0)
+        Transition_Band_Entry = tk.Entry(input_win)
+        Transition_Band_Entry.grid(row=3, column=1)
+
+        def generate_Filter():
+            # Retrieve values from Entry widgets using .get()
+            fs = float(FS_entry.get())
+            fc = float(Cut_off_entry.get())
+            stop = float(Stop_entry.get())
+            transition_band = float(Transition_Band_Entry.get())
+            newFc = fc + transition_band / 2
+            newFc /= fs
+            print("new fc : ",newFc)
+
+            if stop <= 21:   #rectangular
+                # If the stopband attenuation is between 21 and 44 dB, use a rectangular window
+                N=0.9*fs/transition_band
+                if (N%2==0):
+                    N=math.ceil(N)
+                n=(N-1)/2
+                newFc = fc + transition_band / 2
+                newFc /= fs
+                h = [0] * N  # Initialize output signal to zeros
+                window=[1]*N
+                for val in range(-n, n+1):
+                    if val != 0:
+                        h[val ] = (2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else :
+                        h[val]= (2 * newFc)
+                    h[val] *= window[val]
+            elif stop <= 44 :
+                # If the stopband attenuation is between 44 and 53 dB, use a Hanning window
+                N=3.1*fs/transition_band
+                if (N % 2 == 0):
+                    N = math.ceil(N)
+                n=(N-1)/2
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.5 + (0.5 * math.cos((2 * math.pi * n) / N))
+                    if val != 0:
+                        h[val] = (2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else:
+                        h[val] = (2 * newFc)
+                    h[val] *= window[val]
+            elif stop <= 53:
+                # If the stopband attenuation is between 53 and 75 dB, use a Hamming window
+                N = 3.3 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ",N)
+                n = (N - 1) // 2  # Use integer division for n
+                print("n : ",n)
+
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                print("window : ",window)
+
+                for val in range(-n, n + 1):  # Range must include n (i.e., -n to +n)
+                    print("iteration # ",val)
+                    window[val ] = 0.54 + (0.46 * math.cos((2 * math.pi * val) / N))
+                    print("window : ", window[val])
+                    if val != 0:
+                        h[val ] = (2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else :
+                        h[val]= (2 * newFc)
+                    print("1- h is : ", h[val ])
+                    h[val ] *= window[val]
+                    print("2- h is : ", h[val ])
+            elif stop <= 74:
+                # If the stopband attenuation is greater than or equal to 75 dB, use a Blackman-Harris window
+                N = 5.5 * fs / transition_band
+                if (N % 2 == 0):
+                    N = math.ceil(N)
+                n=(N-1)/2
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.42 + (0.5 * math.cos((2 * math.pi * n) / (N-1)))+0.08*(math.cos((4 * math.pi * n)/ (N-1)))
+                    if val != 0:
+                        h[val ] = (2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else :
+                        h[val]= (2 * newFc)
+                    h[val] *= window[val]
+            else:
+                # If stopband attenuation is too low or negative, default to a Hamming window
+                N = 3.1 * fs / transition_band
+                if (N % 2 == 0):
+                    N = math.ceil(N)
+                n=(N-1)/2
+                newFc = fc + transition_band / 2
+                newFc /= fs
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.54 + (0.46 * math.cos((2 * math.pi * n) / N))
+                    if val != 0:
+                        h[val ] = (2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else :
+                        h[val]= (2 * newFc)
+                    h[val] *= window[val]
+
+            output_indices = np.arange(-n, n+1)
+
+            result = np.column_stack((output_indices, h))  # Combine indices and y into a 2D array
+            self.plot_sample_signal(result, " Low Pass Filter ", "Filtered signal")
+
+        # Add the filtering button
+        tk.Button(input_win, text="Filtering", command=generate_Filter).grid(row=4, column=0, columnspan=2)
+
+    def high_pass_filter(self):
+        input_win = tk.Toplevel(self.master)
+        input_win.title(f"Low Pass Filter ")
+
+        tk.Label(input_win, text="Sampling Frequency:").grid(row=0, column=0)
+        FS_entry = tk.Entry(input_win)
+        FS_entry.grid(row=0, column=1)
+
+        tk.Label(input_win, text="Cut Off Frequency:").grid(row=1, column=0)
+        Cut_off_entry = tk.Entry(input_win)
+        Cut_off_entry.grid(row=1, column=1)
+
+        tk.Label(input_win, text="Stop Attenuation:").grid(row=2, column=0)
+        Stop_entry = tk.Entry(input_win)
+        Stop_entry.grid(row=2, column=1)
+
+        tk.Label(input_win, text="Transition Band:").grid(row=3, column=0)
+        Transition_Band_Entry = tk.Entry(input_win)
+        Transition_Band_Entry.grid(row=3, column=1)
+
+        def generate_Filter():
+            # Retrieve values from Entry widgets using .get()
+            fs = float(FS_entry.get())
+            fc = float(Cut_off_entry.get())
+            stop = float(Stop_entry.get())
+            transition_band = float(Transition_Band_Entry.get())
+            newFc = fc + transition_band / 2
+            newFc /= fs
+            print("new fc : ", newFc)
+
+            if stop <= 21:  # rectangular
+                # If the stopband attenuation is between 21 and 44 dB, use a rectangular window
+                N = 0.9 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                newFc = fc + transition_band / 2
+                newFc /= fs
+                h = [0] * N  # Initialize output signal to zeros
+                window = [1] * N
+                for val in range(-n, n+1):
+                    if val != 0:
+                        h[val] = (-2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else:
+                        h[val] =1- (2 * newFc)
+                    h[val] *= window[val]
+            elif stop <= 44:
+                # If the stopband attenuation is between 44 and 53 dB, use a Hanning window
+                N = 3.1 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.5 + (0.5 * math.cos((2 * math.pi * n) / N))
+                    if val != 0:
+                        h[val] = (-2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else:
+                        h[val] = 1 - (2 * newFc)
+                    h[val] *= window[val]
+            elif stop <= 53:
+                # If the stopband attenuation is between 53 and 75 dB, use a Hamming window
+                N = 3.3 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                print("n : ", n)
+
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                print("window : ", window)
+
+                for val in range(-n, n + 1):  # Range must include n (i.e., -n to +n)
+                    print("iteration # ", val)
+                    window[val] = 0.54 + (0.46 * math.cos((2 * math.pi * val) / N))
+                    print("window : ", window[val])
+                    if val != 0:
+                        h[val] = (-2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else:
+                        h[val] = 1 - (2 * newFc)
+                    print("1- h is : ", h[val])
+                    h[val] *= window[val]
+                    print("2- h is : ", h[val])
+            elif stop <= 74:
+                # If the stopband attenuation is greater than or equal to 75 dB, use a Blackman-Harris window
+                N = 5.5 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    print("iteration # ", val)
+                    window[val] = 0.42 - (0.5 * math.cos((2 * math.pi * n) / (N - 1))) + (0.08 * math.cos((4 * math.pi * n) / (N - 1)))
+                    print("window : ", window[val])
+                    if val != 0:
+                        h[val] = (-2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                        print("1- h is : ", h[val])
+                    else:
+                        h[val] = 1 - (2 * newFc)
+                    h[val] *= window[val]
+                    print("2- h is : ", h[val])
+            else:
+                # If stopband attenuation is too low or negative, default to a Hamming window
+                N = 3.1 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                newFc = fc + transition_band / 2
+                newFc /= fs
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.54 + (0.46 * math.cos((2 * math.pi * n) / N))
+                    if val != 0:
+                        h[val] = (-2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
+                    else:
+                        h[val] = 1 - (2 * newFc)
+                    h[val] *= window[val]
+
+            output_indices = np.arange(-n, n + 1)
+
+            result = np.column_stack((output_indices, h))  # Combine indices and y into a 2D array
+            self.plot_sample_signal(result, " Low Pass Filter ", "Filtered signal")
+
+        # Add the filtering button
+        tk.Button(input_win, text="Filtering", command=generate_Filter).grid(row=4, column=0, columnspan=2)
+
+    # def band_pass_filter(self):
+    #
+    # def band_stop_filter(self):
 
 if __name__ == "__main__":
     root = tk.Tk()
