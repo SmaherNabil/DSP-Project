@@ -112,8 +112,8 @@ class SignalProcessor:
         # Add checkbuttons enter levels or enter number of bits
         menu3button.menu.add_command(label="Low pass", command=self.low_pass_filter)
         menu3button.menu.add_command(label="High pass", command=self.high_pass_filter)
-        # menu3button.menu.add_command(label="Band pass", command=self.band_pass_filter)
-        # menu3button.menu.add_command(label="Band stop", command=self.band_stop_filter)
+        menu3button.menu.add_command(label="Band pass", command=self.band_pass_filter)
+        menu3button.menu.add_command(label="Band Reject", command=self.band_reject_filter)
         # Pack the Menubutton
         menu3button.pack()
 
@@ -518,18 +518,34 @@ class SignalProcessor:
         QuantizationTest1("D:\\d\\fcis 2025\\pythonProject\\Quan1_Out.txt", binary_representations,
                           quantized_array)
 #done
-    def convolve_signals(self):
-        range_of_out=(min(self.signals[0][:,0])+min(self.signals[1][:,0]),
-                                            max(self.signals[0][:,0])+max(self.signals[1][:,0]))
-        x=self.signals[0][:,1]
-        h=self.signals[1][:,1]
+    def convolve_signals(self, filter):
+        SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
+        SigNumber -= 1
+
+        FilterNumber = int(tk.simpledialog.askstring("Input", "Enter the Filter Number if you load it else print 0:"))
+        FilterNumber -= 1
+        if (filter is None):
+            print("in if in convolve")
+            range_of_out = (min(self.signals[SigNumber][:, 0]) + min(self.signals[FilterNumber][:, 0]),
+                            max(self.signals[SigNumber][:, 0]) + max(self.signals[FilterNumber][:, 0]))
+            x = self.signals[SigNumber][:, 1]
+            h = self.signals[1][:, 1]
+        else:
+            range_of_out = (min(self.signals[SigNumber][:, 0]) + min(filter[:, 0]),
+                            max(self.signals[SigNumber][:, 0]) + max(filter[:, 0]))
+
+
+            x = self.signals[SigNumber][:, 1]
+            h = filter[:, 1]
+        print("X is : ",x)
+        print("#################################################")
+        print("H is : ",h)
         len_x = len(x)
         len_h = len(h)
 
         # The length of the output signal y[n]
         len_y = len_x + len_h - 1
         y = [0] * len_y  # Initialize output signal to zeros
-
 
         # Iterate through each index in y
         for n in range(len_y):
@@ -543,7 +559,8 @@ class SignalProcessor:
         output_indices = np.arange(range_of_out[0], range_of_out[1] + 1)
         result = np.column_stack((output_indices, y))  # Combine indices and y into a 2D array
 
-        self.plot_sample_signal(result,"convolution","convolved signal")
+        self.plot_sample_signal(result, "convolution", "convolved signal")
+        print("in convlove after signal convolved ###################### ",result)
 #done
     def smooth_signal(self):
 
@@ -597,7 +614,7 @@ class SignalProcessor:
 
         frequency = int(tk.simpledialog.askstring("Input", "Enter frequency in HZ:"))
 
-        x = self.signals[0][:, 1]
+        x = self.signals[SigNumber][:, 1]
         signLen = int(len(x))
         y = [0] * signLen
         Amp = [0] * signLen
@@ -624,15 +641,18 @@ class SignalProcessor:
         print(PhaseShift)
         print(X_axis)
 
-        result = np.column_stack((X_axis, Amp))
-        self.plot_sample_signal(result, "Amplitude graph", "DFT output 1")
-        result = np.column_stack((X_axis, PhaseShift))
-        self.plot_sample_signal(result, "Phase Shift graph", "DFT output 2")
+        resultAmp = np.column_stack((X_axis, Amp))
+        self.plot_sample_signal(resultAmp, "Amplitude graph", "DFT output 1")
+        resultpha = np.column_stack((X_axis, PhaseShift))
+        self.plot_sample_signal(resultpha, "Phase Shift graph", "DFT output 2")
+        return Amp,PhaseShift
 #done
-    def IDFT_transform(self):
-        amp = self.signals[0][:, 0]
-        phase = self.signals[0][:, 1]
-        signLen=len(self.signals[0][:, 0])
+    def IDFT_transform(self,amp,phase):
+        if amp is None and phase is None:
+            amp = self.signals[0][:, 0]
+            phase = self.signals[0][:, 1]
+
+        signLen=len(amp)
         y = [0] * signLen
         out= [0] * signLen
         imag_part = [0] * signLen
@@ -657,7 +677,7 @@ class SignalProcessor:
         print(amplitudes)
         result = np.column_stack((indices, amplitudes))
         self.plot_sample_signal(result, "Resulted Signal", "IDFT output 1")
-
+        print("result in IDFT : ",result)
 #point 1 and 2 in task 8
     def cross_correlation(self):
 
@@ -702,7 +722,6 @@ class SignalProcessor:
             max_correlation = r[max_corr_index]
             timeDelay=(1/Fs)*max_corr_index
             messagebox.showinfo("Success", f"Time Delay is equal to  {timeDelay} .")
-
 #point 3 in task 8
     def correlation(self, signal_a, signal_b):
         """
@@ -921,7 +940,7 @@ class SignalProcessor:
                 h = [0] * N  # Initialize output signal to zeros
                 window = [0] * N
                 for val in range(-n, n+1):
-                    window[val] = 0.42 + (0.5 * math.cos((2 * math.pi * n) / (N-1)))+0.08*(math.cos((4 * math.pi * n)/ (N-1)))
+                    window[val] = 0.42 + (0.5 * math.cos((2 * math.pi * val) / (N-1)))+0.08*(math.cos((4 * math.pi * val)/ (N-1)))
                     if val != 0:
                         h[val ] = (2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
                     else :
@@ -945,17 +964,45 @@ class SignalProcessor:
                         h[val]= (2 * newFc)
                     h[val] *= window[val]
 
+            print("len of h is " ,len(h))
             output_indices = np.arange(-n, n+1)
+            print("output ind are : ",output_indices)
+            print("in filter and h is : ",h)
+            k = n
+            rotated_arr = h[-k:] + h[:-k]
+            print("in filter and h is : ",rotated_arr)
 
-            result = np.column_stack((output_indices, h))  # Combine indices and y into a 2D array
+            result = np.column_stack((output_indices, rotated_arr))  # Combine indices and y into a 2D array
+
             self.plot_sample_signal(result, " Low Pass Filter ", "Filtered signal")
+
+            print("in filter fun and the filter is : ", result)
+            self.convolve_signals(result)
+
+
+            self.signals.append(result)
+
+            print("len of signals",len(self.signals))
+            ampFilter, phaseFilter = self.DFT_transform()
+            ampFilter,phaseSig=self.DFT_transform()
+
+            # Multiply in the frequency domain
+            # ampResult =  np.array(ampFilter) *  np.array(ampSig)
+            # phaseResult =  np.array(phaseFilter) + np.array(phaseSig)
+            amp_result = [a1 * a2 for a1, a2 in zip(ampFilter, ampFilter)]
+            phase_result = [p1 + p2 for p1, p2 in zip(phaseFilter, phaseSig)]
+            print("amplitude result in filter",amp_result)
+            print("################################################################################")
+            print(phase_result)
+            self.IDFT_transform(amp_result,phase_result)
+
 
         # Add the filtering button
         tk.Button(input_win, text="Filtering", command=generate_Filter).grid(row=4, column=0, columnspan=2)
 
     def high_pass_filter(self):
         input_win = tk.Toplevel(self.master)
-        input_win.title(f"Low Pass Filter ")
+        input_win.title(f"High Pass Filter ")
 
         tk.Label(input_win, text="Sampling Frequency:").grid(row=0, column=0)
         FS_entry = tk.Entry(input_win)
@@ -979,7 +1026,7 @@ class SignalProcessor:
             fc = float(Cut_off_entry.get())
             stop = float(Stop_entry.get())
             transition_band = float(Transition_Band_Entry.get())
-            newFc = fc + transition_band / 2
+            newFc = fc - transition_band / 2
             newFc /= fs
             print("new fc : ", newFc)
 
@@ -1059,7 +1106,7 @@ class SignalProcessor:
                 window = [0] * N
                 for val in range(-n, n+1):
                     print("iteration # ", val)
-                    window[val] = 0.42 - (0.5 * math.cos((2 * math.pi * n) / (N - 1))) + (0.08 * math.cos((4 * math.pi * n) / (N - 1)))
+                    window[val] = 0.42 + (0.5 * math.cos((2 * math.pi * val) / (N - 1))) + (0.08 * math.cos((4 * math.pi * val) / (N - 1)))
                     print("window : ", window[val])
                     if val != 0:
                         h[val] = (-2 * newFc) * (math.sin(val * 2 * math.pi * newFc) / (val * 2 * math.pi * newFc))
@@ -1092,14 +1139,317 @@ class SignalProcessor:
             output_indices = np.arange(-n, n + 1)
 
             result = np.column_stack((output_indices, h))  # Combine indices and y into a 2D array
-            self.plot_sample_signal(result, " Low Pass Filter ", "Filtered signal")
+            self.plot_sample_signal(result, " High Pass Filter ", "Filtered signal")
 
         # Add the filtering button
         tk.Button(input_win, text="Filtering", command=generate_Filter).grid(row=4, column=0, columnspan=2)
 
-    # def band_pass_filter(self):
-    #
-    # def band_stop_filter(self):
+    def band_pass_filter(self):
+
+        input_win = tk.Toplevel(self.master)
+        input_win.title(f"Band Pass Filter ")
+
+        tk.Label(input_win, text="Sampling Frequency:").grid(row=0, column=0)
+        FS_entry = tk.Entry(input_win)
+        FS_entry.grid(row=0, column=1)
+
+        tk.Label(input_win, text="Cut Off Frequency 1:").grid(row=1, column=0)
+        Cut_off1_entry = tk.Entry(input_win)
+        Cut_off1_entry.grid(row=1, column=1)
+
+        tk.Label(input_win, text="Cut Off Frequency 2:").grid(row=2, column=0)
+        Cut_off2_entry = tk.Entry(input_win)
+        Cut_off2_entry.grid(row=2, column=1)
+
+        tk.Label(input_win, text="Stop Attenuation:").grid(row=3, column=0)
+        Stop_entry = tk.Entry(input_win)
+        Stop_entry.grid(row=3, column=1)
+
+        tk.Label(input_win, text="Transition Band:").grid(row=4, column=0)
+        Transition_Band_Entry = tk.Entry(input_win)
+        Transition_Band_Entry.grid(row=4, column=1)
+
+        def generate_Filter():
+            # Retrieve values from Entry widgets using .get()
+            fs = float(FS_entry.get())
+            fc1 = float(Cut_off1_entry.get())
+            fc2 = float(Cut_off2_entry.get())
+            stop = float(Stop_entry.get())
+            transition_band = float(Transition_Band_Entry.get())
+            newFc1 = fc1 - transition_band / 2
+            newFc1 /= fs
+            newFc2 = fc2 + transition_band / 2
+            newFc2 /= fs
+            print("new fc : ", newFc1)
+            print("new fc : ", newFc2)
+
+            if stop <= 21:  # rectangular
+                # If the stopband attenuation is between 21 and 44 dB, use a rectangular window
+                N = 0.9 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [1] * N
+                for val in range(-n, n+1):
+                    if val != 0:
+                        h[val] = (2*newFc2*(math.sin(val * 2 * math.pi * newFc2)/ (val * 2 * math.pi * newFc2))
+                                            -2*newFc1*(math.sin(val * 2 * math.pi * newFc1)/ (val * 2 * math.pi * newFc1)))
+                    else:
+                        h[val] =2 * (newFc2-newFc1)
+                    h[val] *= window[val]
+            elif stop <= 44:
+                # If the stopband attenuation is between 44 and 53 dB, use a Hanning window
+                N = 3.1 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.5 + (0.5 * math.cos((2 * math.pi * n) / N))
+                    if val != 0:
+                        h[val] = (2 * newFc2 * (math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2))
+                                  - 2 * newFc1 * (math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1)))
+                    else:
+                        h[val] = 2 * (newFc2 - newFc1)
+                    h[val] *= window[val]
+            elif stop <= 53:
+                # If the stopband attenuation is between 53 and 75 dB, use a Hamming window
+                N = 3.3 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                print("n : ", n)
+
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                print("window : ", window)
+
+                for val in range(-n, n + 1):  # Range must include n (i.e., -n to +n)
+                    print("iteration # ", val)
+                    window[val] = 0.54 + (0.46 * math.cos((2 * math.pi * val) / N))
+                    print("window : ", window[val])
+                    if val != 0:
+                        h[val] = (2 * newFc2 * (math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2))
+                                  - 2 * newFc1 * (math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1)))
+                    else:
+                        h[val] = 2 * (newFc2 - newFc1)
+                    print("1- h is : ", h[val])
+                    h[val] *= window[val]
+                    print("2- h is : ", h[val])
+            elif stop <= 74:
+                # If the stopband attenuation is greater than or equal to 75 dB, use a Blackman-Harris window
+                N = 5.5 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    print("iteration # ", val)
+                    window[val] = 0.42 + (0.5 * math.cos((2 * math.pi * val) / (N - 1))) + (0.08 * math.cos((4 * math.pi * val) / (N - 1)))
+                    print("window : ", window[val])
+                    if val != 0:
+                        h[val] = (2 * newFc2 * (math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2))
+                                  - 2 * newFc1 * (math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1)))
+                    else:
+                        h[val] = 2 * (newFc2 - newFc1)
+                    h[val] *= window[val]
+                    print("2- h is : ", h[val])
+            else:
+                # If stopband attenuation is too low or negative, default to a Hamming window
+                N = 3.1 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.54 + (0.46 * math.cos((2 * math.pi * n) / N))
+                    if val != 0:
+                        h[val] = (2 * newFc2 * (math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2))
+                                  - 2 * newFc1 * (math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1)))
+                    else:
+                        h[val] = 2 * (newFc2 - newFc1)
+                    h[val] *= window[val]
+
+            output_indices = np.arange(-n, n + 1)
+
+            result = np.column_stack((output_indices, h))  # Combine indices and y into a 2D array
+            self.plot_sample_signal(result, " Band Pass Filter ", "Filtered signal")
+
+        # Add the filtering button
+        tk.Button(input_win, text="Filtering", command=generate_Filter).grid(row=5, column=0, columnspan=2)
+
+    def band_reject_filter(self):
+
+        input_win = tk.Toplevel(self.master)
+        input_win.title(f"Band Reject Filter ")
+
+        tk.Label(input_win, text="Sampling Frequency:").grid(row=0, column=0)
+        FS_entry = tk.Entry(input_win)
+        FS_entry.grid(row=0, column=1)
+
+        tk.Label(input_win, text="Cut Off Frequency 1:").grid(row=1, column=0)
+        Cut_off1_entry = tk.Entry(input_win)
+        Cut_off1_entry.grid(row=1, column=1)
+
+        tk.Label(input_win, text="Cut Off Frequency 2:").grid(row=2, column=0)
+        Cut_off2_entry = tk.Entry(input_win)
+        Cut_off2_entry.grid(row=2, column=1)
+
+        tk.Label(input_win, text="Stop Attenuation:").grid(row=3, column=0)
+        Stop_entry = tk.Entry(input_win)
+        Stop_entry.grid(row=3, column=1)
+
+        tk.Label(input_win, text="Transition Band:").grid(row=4, column=0)
+        Transition_Band_Entry = tk.Entry(input_win)
+        Transition_Band_Entry.grid(row=4, column=1)
+
+        def generate_Filter():
+            # Retrieve values from Entry widgets using .get()
+            fs = float(FS_entry.get())
+            fc1 = float(Cut_off1_entry.get())
+            fc2 = float(Cut_off2_entry.get())
+            stop = float(Stop_entry.get())
+            transition_band = float(Transition_Band_Entry.get())
+            newFc1 = fc1 + transition_band / 2
+            newFc1 /= fs
+            newFc2 = fc2 - transition_band / 2
+            newFc2 /= fs
+            print("new fc : ", newFc1)
+            print("new fc : ", newFc2)
+
+            if stop <= 21:  # rectangular
+                # If the stopband attenuation is between 21 and 44 dB, use a rectangular window
+                N = 0.9 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [1] * N
+                for val in range(-n, n+1):
+                    if val != 0:
+                        h[val] = (2*newFc1*(math.sin(val * 2 * math.pi * newFc1)/ (val * 2 * math.pi * newFc1))
+                                            -2*newFc2*(math.sin(val * 2 * math.pi * newFc2)/ (val * 2 * math.pi * newFc2)))
+                    else:
+                        h[val] =1-(2 * (newFc2-newFc1))
+                    h[val] *= window[val]
+            elif stop <= 44:
+                # If the stopband attenuation is between 44 and 53 dB, use a Hanning window
+                N = 3.1 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.5 + (0.5 * math.cos((2 * math.pi * n) / N))
+                    if val != 0:
+                        h[val] = (2*newFc1*(math.sin(val * 2 * math.pi * newFc1)/ (val * 2 * math.pi * newFc1))
+                                            -2*newFc2*(math.sin(val * 2 * math.pi * newFc2)/ (val * 2 * math.pi * newFc2)))
+                    else:
+                        h[val] =1-(2 * (newFc2-newFc1))
+                    h[val] *= window[val]
+            elif stop <= 53:
+                # If the stopband attenuation is between 53 and 75 dB, use a Hamming window
+                N = 3.3 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                print("n : ", n)
+
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                print("window : ", window)
+
+                for val in range(-n, n + 1):  # Range must include n (i.e., -n to +n)
+                    print("iteration # ", val)
+                    window[val] = 0.54 + (0.46 * math.cos((2 * math.pi * val) / N))
+                    print("window : ", window[val])
+                    if val != 0:
+                        h[val] = (2*newFc1*(math.sin(val * 2 * math.pi * newFc1)/ (val * 2 * math.pi * newFc1))
+                                            -2*newFc2*(math.sin(val * 2 * math.pi * newFc2)/ (val * 2 * math.pi * newFc2)))
+                    else:
+                        h[val] =1-(2 * (newFc2-newFc1))
+                    print("1- h is : ", h[val])
+                    h[val] *= window[val]
+                    print("2- h is : ", h[val])
+            elif stop <= 74:
+                # If the stopband attenuation is greater than or equal to 75 dB, use a Blackman-Harris window
+                N = 5.5 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    print("iteration # ", val)
+                    window[val] = 0.42 + (0.5 * math.cos((2 * math.pi * val) / (N - 1))) + (0.08 * math.cos((4 * math.pi * val) / (N - 1)))
+                    print("window : ", window[val])
+                    if val != 0:
+                        h[val] = (2*newFc1*(math.sin(val * 2 * math.pi * newFc1)/ (val * 2 * math.pi * newFc1))
+                                            -2*newFc2*(math.sin(val * 2 * math.pi * newFc2)/ (val * 2 * math.pi * newFc2)))
+                    else:
+                        h[val] =1-(2 * (newFc2-newFc1))
+                    h[val] *= window[val]
+                    print("2- h is : ", h[val])
+            else:
+                # If stopband attenuation is too low or negative, default to a Hamming window
+                N = 3.1 * fs / transition_band
+                N = math.ceil(N)  # Ensure N is an integer
+
+                if N % 2 == 0:  # Ensure N is odd, as filters typically require odd length
+                    N += 1
+                print("N : ", N)
+                n = (N - 1) // 2  # Use integer division for n
+                h = [0] * N  # Initialize output signal to zeros
+                window = [0] * N
+                for val in range(-n, n+1):
+                    window[val] = 0.54 + (0.46 * math.cos((2 * math.pi * n) / N))
+                    if val != 0:
+                        h[val] = (2 * newFc1 * (math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1))
+                                  - 2 * newFc2 * (math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2)))
+                    else:
+                        h[val] = 1 - (2 * (newFc2 - newFc1))
+                    h[val] *= window[val]
+
+            output_indices = np.arange(-n, n + 1)
+
+            result = np.column_stack((output_indices, h))  # Combine indices and y into a 2D array
+            self.plot_sample_signal(result, " Band Pass Filter ", "Filtered signal")
+
+        # Add the filtering button
+        tk.Button(input_win, text="Filtering", command=generate_Filter).grid(row=5, column=0, columnspan=2)
+
 
 if __name__ == "__main__":
     root = tk.Tk()
