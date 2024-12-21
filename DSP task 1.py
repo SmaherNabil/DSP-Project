@@ -12,14 +12,9 @@ import os
 import numpy as np
 from tkinter import messagebox
 
-from QuanTest1 import QuantizationTest1
-from QuanTest2 import QuantizationTest2
-from CompareSignal import *
-
 import numpy as np
 from tkinter import filedialog, messagebox
 
-from scipy.signal import get_window
 import math
 
 
@@ -118,14 +113,12 @@ class SignalProcessor:
         menu3button.menu.add_command(label="Band Reject", command=self.band_reject_filter)
         # Pack the Menubutton
         menu3button.pack()
-
-        self.apply_filter_direct = tk.Button(master, text="apply filter", command=self.apply_filter_direct)
+        self.apply_filter_direct = tk.Button(master, text="apply filter(direct)", command=self.apply_filter_direct)
         self.apply_filter_direct.pack()
-        # self.apply_filter_fast= tk.Button(master, text="apply filter(fast)", command=self.apply_filter_fast)
-        # self.apply_filter_fast.pack()
+        self.apply_filter_fast= tk.Button(master, text="apply filter(fast)", command=self.apply_filter_fast)
+        self.apply_filter_fast.pack()
 
-
-#done
+    #done
     def load_signal(self):
         filepath = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
         if filepath:
@@ -526,24 +519,18 @@ class SignalProcessor:
         QuantizationTest1("D:\\d\\fcis 2025\\pythonProject\\Quan1_Out.txt", binary_representations,
                           quantized_array)
 #done
-    def convolve_signals(self, filterType):
-
-        FilterNumber = int(tk.simpledialog.askstring("Input", "Enter the Filter Number if you load it else print 0:"))
+    def convolve_signals(self):
+        FilterNumber = int(tk.simpledialog.askstring("Input", "Enter the Filter Number :"))
         FilterNumber -= 1
 
         SigNumber = int(tk.simpledialog.askstring("Input", "Enter the Signal Number:"))
         SigNumber -= 1
 
+        print("in if in convolve")
         range_of_out = (min(self.signals[SigNumber][:, 0]) + min(self.signals[FilterNumber][:, 0]),
                         max(self.signals[SigNumber][:, 0]) + max(self.signals[FilterNumber][:, 0]))
         x = self.signals[SigNumber][:, 1]
         h = self.signals[FilterNumber][:, 1]
-
-        print("X is : ",x)
-        print("#################################################")
-        print("H is : ",h)
-        len_x = len(x)
-        len_h = len(h)
 
         # The length of the output signal y[n]
         len_y = len_x + len_h - 1
@@ -563,18 +550,6 @@ class SignalProcessor:
 
         self.plot_sample_signal(result, "convolution", "convolved signal")
         print("in convlove after signal convolved ###################### ",result)
-        if (filterType == "lowPass"):
-             Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 2\\ecg_low_pass_filtered.txt",output_indices,y)
-        if (filterType == "highPass"):
-            Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 4\\ecg_high_pass_filtered.txt",
-                            output_indices, y)
-        if (filterType == "bandPass"):
-            Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 6\\ecg_band_pass_filtered.txt",
-                            output_indices, y)
-        if (filterType == "bandReject"):
-            Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 8\\ecg_band_stop_filtered.txt",
-                            output_indices, y)
-
 #done
     def smooth_signal(self):
 
@@ -661,7 +636,7 @@ class SignalProcessor:
         self.plot_sample_signal(resultpha, "Phase Shift graph", "DFT output 2")
         return Amp,PhaseShift
 #done
-    def IDFT_transform(self,amp,phase,filterType):
+    def IDFT_transform(self,amp,phase):
         if amp is None and phase is None:
             amp = self.signals[0][:, 0]
             phase = self.signals[0][:, 1]
@@ -692,116 +667,14 @@ class SignalProcessor:
         result = np.column_stack((indices, amplitudes))
         self.plot_sample_signal(result, "Resulted Signal", "IDFT output 1")
         print("result in IDFT : ",result)
-        if (filterType == "lowPass"):
-            Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 2\\ecg_low_pass_filtered.txt",
-                            indices, amplitudes)
-        if (filterType == "highPass"):
-            Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 4\\ecg_high_pass_filtered.txt",
-                            indices, amplitudes)
-        if (filterType == "bandPass"):
-            Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 6\\ecg_band_pass_filtered.txt",
-                           indices, amplitudes)
-        if (filterType == "bandReject"):
-            Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 8\\ecg_band_stop_filtered.txt",
-                            indices, amplitudes)
-
-    #point 1 and 2 in task 8
+#point 1 and 2 in task 8
     def cross_correlation(self):
-
-        x = self.signals[0][:, 1]  # First signal values
-        h = self.signals[1][:, 1]  # Second signal values
-        len_x = len(x)
-        len_h = len(h)
-        start = int(self.signals[0][:, 0][0])
-        end = int(self.signals[0][:, 0][-1])
-        size = len(x)  # Total number of points in the correlation result
-
-        # The length of the output signal y[n]
-        len_r = len_x
-        r = [0] * len_r  # Initialize output signal to zeros
-
-        # Compute periodic correlation
-        for l in range(len_r):
-            for n in range(len_x):
-                h_index = (n + l) % len_h  # Wrap around using modulo for periodicity
-                r[l] += h[h_index] * x[n]
-            r[l] /= size  # Normalize by the size
-
-        # Prepare result as a 2D array with indices
-        output_indices = np.arange(start, end + 1)
-
-        # Normalize the correlation result (optional but recommended)
-        normalization_factor = np.sqrt(np.sum(x ** 2) * np.sum(h ** 2))
-        if normalization_factor != 0:
-            for val in range(len_r):
-                r[val] /= (normalization_factor * (1 / size))
-
-        print(r)
-        result = np.column_stack((output_indices, r))  # Combine indices and y into a 2D array
-        self.plot_sample_signal(result, " Correlation ", "Correlated signal")
-        Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\Correlation Task Files\\Point1 Correlation\\CorrOutput.txt",
-                        output_indices, r)
-
-        check = int(tk.simpledialog.askstring("Input", "Please if you want to calculate the time delay press 1 :"))
-
-        if check==1 :
-            Fs = int(tk.simpledialog.askstring("Input", "Please enter the Sampling Frequency :"))
-            # Find the lag corresponding to the maximum correlation
-            max_corr_index = np.argmax(r)  # Index of maximum correlation
-            max_correlation = r[max_corr_index]
-            timeDelay=(1/Fs)*max_corr_index
             messagebox.showinfo("Success", f"Time Delay is equal to  {timeDelay} .")
-
 #point 3 in task 8
     def correlation(self, signal_a, signal_b):
-        """
-        Computes the normalized correlation between two signals.
-        Assumes that both signals are 2D arrays with time index and values.
-        """
-        x = signal_a[:, 1]  # Signal A values
-        h = signal_b[:, 1]  # Signal B values
-
-        len_x = len(x)
-        len_h = len(h)
-
-        r = np.zeros(len_x)  # Initialize correlation array
-
-        # Compute the cross-correlation
-        for l in range(len_x):
-            for n in range(len_x):
-                h_index = n + l
-                if 0 <= h_index < len_h:  # Check if the index is within bounds
-                    r[l] += h[h_index] * x[n]
-
-        # Normalize the result
-        normalization_factor = np.sqrt(np.sum(x ** 2) * np.sum(h ** 2))
-        if normalization_factor != 0:
-            r = r / normalization_factor
-
         return r
 
     def classify_signal(self, test_signal):
-        """
-        Classify a test signal based on the correlation with Class 1 and Class 2 signals.
-        Returns the predicted class (1 or 2).
-        """
-        max_corr_class_1 = 0
-        max_corr_class_2 = 0
-
-        # Compute maximum correlation with Class 1 signals
-        for filename, class_1_signal in self.class_1_signals:
-            correlation_result = self.correlation(test_signal, class_1_signal)
-            max_corr_class_1 = max(max_corr_class_1, np.max(correlation_result))
-
-        # Compute maximum correlation with Class 2 signals
-        for filename, class_2_signal in self.class_2_signals:
-            correlation_result = self.correlation(test_signal, class_2_signal)
-            max_corr_class_2 = max(max_corr_class_2, np.max(correlation_result))
-
-        # Classify based on which class has the higher maximum correlation
-        if max_corr_class_1 > max_corr_class_2:
-            return 1  # Class 1
-        else:
             return 2  # Class 2
 
     def process_and_classify_all_test_signals(self):
@@ -873,7 +746,6 @@ class SignalProcessor:
         classified=self.process_and_classify_all_test_signals()
         print(classified)
         messagebox.showinfo("Success", f"After classification here is the output {classified} .")
-
     def low_pass_filter(self):
         self.filtering('LowPass')
     def high_pass_filter(self):
@@ -969,7 +841,6 @@ class SignalProcessor:
 
                 self.plot_sample_signal(result, " Low Pass Filter ", "Filtered signal")
                 self.signals.append(result)
-                Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 1\\LPFCoefficients.txt",output_indices,rotated_arr)
             # Add the filtering button
             tk.Button(input_win, text="Filtering", command=LowPass).grid(row=4, column=0, columnspan=2)
         if (filterType == 'HighPass'):
@@ -1005,8 +876,6 @@ class SignalProcessor:
                 result = np.column_stack((output_indices, rotated_arr))  # Combine indices and y into a 2D array
 
                 self.plot_sample_signal(result, " High Pass Filter ", "Filtered signal")
-                self.signals.append(result)
-                Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 3\\HPFCoefficients.txt",output_indices,rotated_arr)
 
             # Add the filtering button
             tk.Button(input_win, text="Filtering", command=HighPass).grid(row=4, column=0, columnspan=2)
@@ -1036,13 +905,13 @@ class SignalProcessor:
                 for val in range(-n, n + 1):
                     print("iteration # ", val)
                     window_value = self.get_window(window_type, val, N)
-
                     if val != 0:
-                        h[val] = (2 * newFc2 * (math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2))
-                                  - 2 * newFc1 * (
-                                              math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1)))
-                    else:
-                        h[val] = 2 * (newFc2 - newFc1)
+                        if val != 0:
+                            h[val] = (2 * newFc2 * (math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2))
+                                      - 2 * newFc1 * (
+                                                  math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1)))
+                        else:
+                            h[val] = 2 * (newFc2 - newFc1)
                     h[val] *= window_value
                     print("h : ",h[val])
 
@@ -1053,8 +922,6 @@ class SignalProcessor:
                 result = np.column_stack((output_indices, rotated_arr))  # Combine indices and y into a 2D array
 
                 self.plot_sample_signal(result, " Band Pass Filter ", "Filtered signal")
-                self.signals.append(result)
-                Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 5\\BPFCoefficients.txt",output_indices,rotated_arr)
 
             # Add the filtering button
             tk.Button(input_win, text="Filtering", command=BandPass).grid(row=5, column=0, columnspan=2)
@@ -1084,13 +951,13 @@ class SignalProcessor:
                 for val in range(-n, n + 1):
                     print("iteration # ", val)
                     window_value = self.get_window(window_type, val, N)
-
                     if val != 0:
-                        h[val] = (2 * newFc1 * (math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1))
-                                  - 2 * newFc2 * (
-                                              math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2)))
-                    else:
-                        h[val] = 1-(2 * (newFc2 - newFc1))
+                        if val != 0:
+                            h[val] = (2 * newFc1 * (math.sin(val * 2 * math.pi * newFc1) / (val * 2 * math.pi * newFc1))
+                                      - 2 * newFc2 * (
+                                                  math.sin(val * 2 * math.pi * newFc2) / (val * 2 * math.pi * newFc2)))
+                        else:
+                            h[val] = 1-(2 * (newFc2 - newFc1))
                     h[val] *= window_value
                     print("h : ",h[val])
 
@@ -1101,60 +968,33 @@ class SignalProcessor:
                 result = np.column_stack((output_indices, rotated_arr))  # Combine indices and y into a 2D array
 
                 self.plot_sample_signal(result, " Band Reject Filter ", "Filtered signal")
-                self.signals.append(result)
-                Compare_Signals("D:\\d\\fcis 2025\\pythonProject\\FIR test cases\\Testcase 7\\BSFCoefficients.txt",output_indices,rotated_arr)
 
             # Add the filtering button
             tk.Button(input_win, text="Filtering", command=BandReject).grid(row=5, column=0, columnspan=2)
     def apply_filter_direct(self):
-        filterType = int(tk.simpledialog.askstring("Input", "Enter the Filter Type   1 for low , 2 for high , 3 for band pass , 4 for band reject:"))
-        if (filterType==1):
-            self.convolve_signals("lowPass")
-        if (filterType==2):
-            self.convolve_signals("highPass")
-        if (filterType==3):
-            self.convolve_signals("bandPass")
-        if (filterType==4):
-            self.convolve_signals("bandReject")
+        self.convolve_signals()
+    def apply_filter_fast(self):
 
-    # def apply_filter_fast(self):
-    #     filterNum = int(tk.simpledialog.askstring("Input", "Enter the Filter Number"))
-    #     filter=self.signals[filterNum][:]
-    #
-    #     sigNum = int(tk.simpledialog.askstring("Input", "Enter the Signal Number"))
-    #     signal = self.signals[filterNum][:]
-    #
-    #     new_length = len(filter) + len(signal) - 1
-    #     # Pad the filter and the signal
-    #     Filter_padded = np.pad(filter, (0, new_length - len(filter)), mode='constant')
-    #     Sig_padded = np.pad(signal, (0, new_length - len(signal)), mode='constant')
-    #
-    #     self.signals.append(Filter_padded)
-    #     self.signals.append(Sig_padded)
-    #
-    #     ampFilter, phaseFilter = self.DFT_transform()
-    #     ampSig,phaseSig=self.DFT_transform()
-    #
-    #     print("ampFilter after padding : " , len(ampFilter))
-    #     print("ampSig after padding : " , len(phaseFilter))
-    #
-    #     amp_result = ampFilter*ampSig
-    #     phase_result = phaseFilter+ phaseSig
-    #
-    #     print("amplitude result in filter",amp_result)
-    #     print("################################################################################")
-    #     print(phase_result)
-    #     filterType = int(tk.simpledialog.askstring("Input",
-    #                                                "Enter the Filter Type   1 for low , 2 for high , 3 for band pass , 4 for band reject:"))
-    #     if (filterType == 1):
-    #         self.IDFT_transform(amp_result, phase_result, "lowPass")
-    #     if (filterType == 2):
-    #         self.IDFT_transform(amp_result, phase_result, "highPass")
-    #     if (filterType == 3):
-    #         self.IDFT_transform(amp_result, phase_result, "bandPass")
-    #     if (filterType == 4):
-    #         self.IDFT_transform(amp_result, phase_result, "bandReject")
-    #
+        ampFilter, phaseFilter = self.DFT_transform()
+        ampSig,phaseSig=self.DFT_transform()
+
+        new_length = len(ampFilter) + len(ampSig) - 1
+
+        # Pad the amplitude
+        ampFilter_padded = np.pad(ampFilter, (0, new_length - len(ampFilter)), mode='constant')
+        ampSig_padded = np.pad(ampSig, (0, new_length - len(ampSig)), mode='constant')
+
+        # Pad the phase
+        phaseFilter_padded = np.pad(phaseFilter, (0, new_length - len(phaseFilter)), mode='constant')
+        phaseSig_padded = np.pad(phaseSig, (0, new_length - len(phaseSig)), mode='constant')
+
+        amp_result = [a1 * a2 for a1, a2 in zip(ampFilter_padded, ampSig_padded)]
+        phase_result = [p1 + p2 for p1, p2 in zip(phaseFilter_padded, phaseSig_padded)]
+
+        print("amplitude result in filter",amp_result)
+        print("################################################################################")
+        print(phase_result)
+        self.IDFT_transform(amp_result,phase_result)
 
 
 if __name__ == "__main__":
